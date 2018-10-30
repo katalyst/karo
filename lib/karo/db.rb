@@ -81,9 +81,37 @@ module Karo
         raise Thor::Error, "Please make sure MySQL development configuration exists within this file? '#{server_db_config_file}'"
       end
 
-      say "Loading #{options[:environment]} server database configuration", :green
+      if server_db_config[options[:environment]].key?("username")
+        say "Loading #{options[:environment]} server database configuration", :green
+        server_db_config[options[:environment]]
+      else
+        hatchbox_server_db_config = load_hatchbox_server_db_config(server_db_config[options[:environment]])
+        hatchbox_server_db_config
+      end
+    end
 
-      server_db_config[options[:environment]]
+    def load_hatchbox_server_db_config(server_db_config)
+      host = "#{@configuration["user"]}@#{@configuration["host"]}"
+      path = File.join(@configuration["path"], "current")
+      
+      # Create tmp database.yml
+      write_cmd = %{cd #{path} && bundle exec rails runner $'File.open(\\'tmp/database.yml\\', \\'w\\') {|f| f.write(ActiveRecord::Base.connection_config.to_yaml) }'}
+      `ssh "#{host}" "#{write_cmd}"`
+
+      # Read tmp database.yml
+      hatchbox_server_db_config_file = File.join(path, "tmp", "database.yml")
+      read_cmd  = "ssh #{host} 'cat #{hatchbox_server_db_config_file}'"
+      hatchbox_server_db_config_output = `#{read_cmd}`
+      yaml_without_any_ruby = ERB.new(hatchbox_server_db_config_output).result
+      hatchbox_server_db_config = YAML.load(yaml_without_any_ruby)
+
+      #Add details to input hash
+      server_db_config["username"] = hatchbox_server_db_config.delete(:username)
+      server_db_config["password"] = hatchbox_server_db_config.delete(:password)
+      server_db_config["database"] = hatchbox_server_db_config.delete(:database)
+      server_db_config["host"] = @configuration["host"]
+
+      server_db_config
     end
 
     def drop_and_create_local_database(local_db_config)
