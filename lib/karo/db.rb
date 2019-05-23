@@ -92,23 +92,17 @@ module Karo
 
     def load_hatchbox_server_db_config(server_db_config)
       host = "#{@configuration["user"]}@#{@configuration["host"]}"
-      path = File.join(@configuration["path"], "current")
-      
-      # Create tmp database.yml
-      write_cmd = %{cd #{path} && bundle exec rails runner $'File.open(\\'tmp/database.yml\\', \\'w\\') {|f| f.write(ActiveRecord::Base.connection_config.to_yaml) }'}
-      `ssh "#{host}" "#{write_cmd}"`
+      path = @configuration["path"]
 
-      # Read tmp database.yml
-      hatchbox_server_db_config_file = File.join(path, "tmp", "database.yml")
-      read_cmd  = "ssh #{host} 'cat #{hatchbox_server_db_config_file}'"
-      hatchbox_server_db_config_output = `#{read_cmd}`
-      yaml_without_any_ruby = ERB.new(hatchbox_server_db_config_output).result
-      hatchbox_server_db_config = YAML.load(yaml_without_any_ruby)
+      # Get database connect string
+      cmd = %{cd #{path} && grep "DATABASE_URL" .rbenv-vars}
+      database_connect_string = `ssh "#{host}" "#{cmd}"`
+      database_url = database_connect_string.split('://').last.strip
 
-      #Add details to input hash
-      server_db_config["username"] = hatchbox_server_db_config.delete(:username)
-      server_db_config["password"] = hatchbox_server_db_config.delete(:password)
-      server_db_config["database"] = hatchbox_server_db_config.delete(:database)
+      # Add details to input hash
+      server_db_config["username"] = database_url.split(':').first
+      server_db_config["password"] = database_url.split(':').last.split('@').first
+      server_db_config["database"] = database_url.split('/').last
       server_db_config["host"] = @configuration["host"]
 
       server_db_config
