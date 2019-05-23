@@ -110,7 +110,6 @@ module Karo
     end
 
     def drop_and_create_local_database(local_db_config)
-
       command = case local_db_config["adapter"]
       when "mysql2"
         "mysql -v -h #{local_db_config["host"]} -u#{local_db_config["username"]} -p#{local_db_config["password"]} -e 'DROP DATABASE IF EXISTS `#{local_db_config["database"]}`; CREATE DATABASE IF NOT EXISTS `#{local_db_config["database"]}`;'"
