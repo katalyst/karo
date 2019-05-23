@@ -83,7 +83,30 @@ module Karo
 
       say "Loading #{options[:environment]} server database configuration", :green
 
-      server_db_config[options[:environment]]
+      if server_db_config[options[:environment]].key?("username")
+        server_db_config[options[:environment]]
+      else
+        hatchbox_server_db_config = load_hatchbox_server_db_config(server_db_config[options[:environment]])
+        hatchbox_server_db_config
+      end
+    end
+
+    def load_hatchbox_server_db_config(server_db_config)
+      host = "#{@configuration["user"]}@#{@configuration["host"]}"
+      path = @configuration["path"]
+
+      # Get database connect string
+      cmd = %{cd #{path} && grep "DATABASE_URL" .rbenv-vars}
+      database_connect_string = `ssh "#{host}" "#{cmd}"`
+      database_url = database_connect_string.split('://').last.strip
+
+      # Add details to input hash
+      server_db_config["username"] = database_url.split(':').first
+      server_db_config["password"] = database_url.split(':').last.split('@').first
+      server_db_config["database"] = database_url.split('/').last
+      server_db_config["host"] = @configuration["host"]
+
+      server_db_config
     end
 
     def drop_and_create_local_database(local_db_config)
@@ -99,6 +122,7 @@ module Karo
         raise Thor::Error, "Please make sure that the database adapter is either mysql2 or postgresql?"
       end
 
+      say "Dropping and recreating local database", :green
       run_it command, options[:verbose]
     end
 
@@ -109,11 +133,12 @@ module Karo
       when /mysql|mysql2/
         "#{ssh} \"mysqldump --opt -C -h #{server_db_config["host"]} -u#{server_db_config["username"]} -p#{server_db_config["password"]} -h#{server_db_config["host"]} #{server_db_config["database"]} | gzip -9 -c\" | gunzip -c | mysql -h #{local_db_config["host"]} -C -u#{local_db_config["username"]} -p#{local_db_config["password"]} #{local_db_config["database"]}"
       when "postgresql"
-        "#{ssh} \"export PGPASSWORD='#{server_db_config["password"]}'; pg_dump -Fc -U #{server_db_config["username"]} -h #{server_db_config["host"]} #{server_db_config["database"]} | gzip -9 -c\" | gunzip -c | pg_restore -h #{local_db_config["host"]} -U #{local_db_config["username"]} -d #{local_db_config["database"]}"
+        "#{ssh} \"export PGPASSWORD='#{server_db_config["password"]}'; pg_dump -Fc -U #{server_db_config["username"]} -h #{server_db_config["host"]} #{server_db_config["database"]} | gzip -9 -c\" | gunzip -c | pg_restore -h #{local_db_config["host"]} -U #{local_db_config["username"]} -d #{local_db_config["database"]} --no-owner --role=deploy"
       else
         raise Thor::Error, "Please make sure that the database adapter is either mysql2 or postgresql?"
       end
 
+      say "Syncing #{options[:environment]} database to local database", :green
       run_it command, options[:verbose]
     end
 
