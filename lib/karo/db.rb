@@ -131,7 +131,7 @@ module Karo
       when /mysql|mysql2/
         "#{ssh} \"mysqldump --opt -C -h #{server_db_config["host"]} -u#{server_db_config["username"]} -p#{server_db_config["password"]} -h#{server_db_config["host"]} #{server_db_config["database"]} | gzip -9 -c\" | gunzip -c | mysql -h #{local_db_config["host"]} -C -u#{local_db_config["username"]} -p#{local_db_config["password"]} #{local_db_config["database"]}"
       when "postgresql"
-        "#{ssh} \"export PGPASSWORD='#{server_db_config["password"]}'; pg_dump -Fc -U #{server_db_config["username"]} -h #{server_db_config["host"]} #{server_db_config["database"]} | gzip -9 -c\" | gunzip -c | pg_restore -h #{local_db_config["host"]} -U #{local_db_config["username"]} -d #{local_db_config["database"]}"
+        "#{ssh} \"export PGPASSWORD='#{server_db_config["password"]}'; pg_dump -Fc -U #{server_db_config["username"]} -h #{server_db_config["host"]} #{server_db_config["database"]} | gzip -9 -c\" | gunzip -c | pg_restore -h #{local_db_config["host"]} -U #{local_db_config["username"]} -d #{local_db_config["database"]} --no-owner --role=deploy"
       else
         raise Thor::Error, "Please make sure that the database adapter is either mysql2 or postgresql?"
       end
