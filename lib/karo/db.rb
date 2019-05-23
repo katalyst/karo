@@ -81,8 +81,9 @@ module Karo
         raise Thor::Error, "Please make sure MySQL development configuration exists within this file? '#{server_db_config_file}'"
       end
 
+      say "Loading #{options[:environment]} server database configuration", :green
+
       if server_db_config[options[:environment]].key?("username")
-        say "Loading #{options[:environment]} server database configuration", :green
         server_db_config[options[:environment]]
       else
         hatchbox_server_db_config = load_hatchbox_server_db_config(server_db_config[options[:environment]])
@@ -109,6 +110,7 @@ module Karo
     end
 
     def drop_and_create_local_database(local_db_config)
+
       command = case local_db_config["adapter"]
       when "mysql2"
         "mysql -v -h #{local_db_config["host"]} -u#{local_db_config["username"]} -p#{local_db_config["password"]} -e 'DROP DATABASE IF EXISTS `#{local_db_config["database"]}`; CREATE DATABASE IF NOT EXISTS `#{local_db_config["database"]}`;'"
@@ -121,6 +123,7 @@ module Karo
         raise Thor::Error, "Please make sure that the database adapter is either mysql2 or postgresql?"
       end
 
+      say "Dropping and recreating local database", :green
       run_it command, options[:verbose]
     end
 
@@ -136,6 +139,7 @@ module Karo
         raise Thor::Error, "Please make sure that the database adapter is either mysql2 or postgresql?"
       end
 
+      say "Syncing #{options[:environment]} database to local database", :green
       run_it command, options[:verbose]
     end
 
